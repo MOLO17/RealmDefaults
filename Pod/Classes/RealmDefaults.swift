@@ -24,27 +24,29 @@ import Foundation
 import RealmSwift
 
 #if os(iOS)
-    private let documentsPath = NSSearchPathForDirectoriesInDomains(.DocumentDirectory, .UserDomainMask, true)[0]
+    private let documentsPath = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0]
 #elseif os(OSX)
     private let documentsPath = NSSearchPathForDirectoriesInDomains(.DocumentDirectory, .UserDomainMask, true)[0]
 #endif
 
 public protocol RealmDefaultsType: class {
     
-    static func write(@noescape block: (Self) throws -> Void) throws
+    static func write(_ block: (RealmDefaults) throws -> Void) throws
     static func configuration() -> RealmSwift.Realm.Configuration
 }
 
-extension RealmDefaultsType where Self: RealmDefaults {
+private let primaryKeyValue = "RealmDefaults"
+
+open class RealmDefaults: RealmSwift.Object, RealmDefaultsType {
     
-    public static func replace(object: Self) throws {
+    public static func replace(_ object: RealmDefaults) throws {
         let realm = try Realm(configuration: self.configuration())
         try realm.write {
             realm.add(object, update: true)
         }
     }
     
-    public static func write(@noescape block: (Self) throws -> Void) throws {
+    public static func write(_ block: (RealmDefaults) throws -> Void) throws {
         self.init()
         
         self.willWrite()
@@ -54,7 +56,7 @@ extension RealmDefaultsType where Self: RealmDefaults {
         }
         
         let realm = try Realm(configuration: self.configuration())
-        if let object = realm.objectForPrimaryKey(self, key: primaryKeyValue) {
+        if let object = realm.object(ofType: self, forPrimaryKey: primaryKeyValue as AnyObject) {
             
             realm.beginWrite()
             
@@ -70,7 +72,7 @@ extension RealmDefaultsType where Self: RealmDefaults {
         } else {
             
             let object = try self.create(realm)
-           
+            
             realm.beginWrite()
             
             do {
@@ -84,51 +86,46 @@ extension RealmDefaultsType where Self: RealmDefaults {
         }
     }
     
-    public static var instance: Self {
+    public static var instance: RealmDefaults {
         
-        let create: () throws -> Self = {
+        let create: () throws -> RealmDefaults = {
             let realm = try Realm(configuration: self.configuration())
-            if let object = realm.objectForPrimaryKey(self, key: primaryKeyValue) {
+            if let object = realm.object(ofType: self, forPrimaryKey: primaryKeyValue as AnyObject) {
                 return object
             }
             return try self.create(realm)
         }
         
         do {
-            return try create()
+            return try create() as! RealmDefaults
         } catch {
             
             let error = error as NSError
             if error.code == 10 {
                 
                 do {
-                    try NSFileManager.defaultManager().removeItemAtURL(NSURL(fileURLWithPath: self.filePath()))
-                    return try create()
+                    try FileManager.default.removeItem(at: URL(fileURLWithPath: self.filePath()))
+                    return try create() as! RealmDefaults
                 } catch {
                     fatalError("RealmDefaults Fatal Error: Failed to re-create Realm \(error)")
                 }
                 
             } else {
-            
+                
                 fatalError("RealmDefaults Fatal Error: Failed to create Realm \(error)")
             }
         }
     }
     
-    private static func create(realm: Realm) throws -> Self {
+    fileprivate static func create(_ realm: Realm) throws -> Self {
         let object = self.init()
         try realm.write {
             realm.add(object, update: true)
         }
         return object
     }
-}
-
-private let primaryKeyValue = "RealmDefaults"
-
-public class RealmDefaults: RealmSwift.Object, RealmDefaultsType {
     
-    public class func purge() {
+    open class func purge() {
         self.willPurge()
         defer {
             self.didPurge()
@@ -144,25 +141,21 @@ public class RealmDefaults: RealmSwift.Object, RealmDefaultsType {
         }
     }
     
-    public class func schemaVersion() -> UInt64 {
-        
+    open class func schemaVersion() -> UInt64 {
         preconditionFailure("Required override this method.")
     }
     
-    public class func defaultsName() -> String {
-        
+    open class func defaultsName() -> String {
         return NSStringFromClass(self)
     }
     
-    public class func filePath() -> String {
-        
+    open class func filePath() -> String {
         return documentsPath + "/RealmDefaults_\(self.defaultsName()).realm"
     }
     
-    public class func configuration() -> RealmSwift.Realm.Configuration {
-       
+    open class func configuration() -> RealmSwift.Realm.Configuration {
         return RealmSwift.Realm.Configuration(
-            fileURL: NSURL(fileURLWithPath: self.filePath()),
+            fileURL: NSURL(fileURLWithPath: self.filePath()) as URL,
             inMemoryIdentifier: nil,
             encryptionKey: nil,
             readOnly: false,
@@ -173,29 +166,28 @@ public class RealmDefaults: RealmSwift.Object, RealmDefaultsType {
             objectTypes: [self])
     }
     
-    
     // MARK: Object
     public final override class func primaryKey() -> String? {
         return "__identifier"
     }
     
-    public class func willWrite() {
+    open class func willWrite() {
         
     }
     
-    public class func didWrite() {
+    open class func didWrite() {
         
     }
     
-    public class func willPurge() {
+    open class func willPurge() {
         
     }
     
-    public class func didPurge() {
+    open class func didPurge() {
         
     }
     
-    public class func migration(migration: Migration, oldSchemaVersion: UInt64) {
+    open class func migration(_ migration: Migration, oldSchemaVersion: UInt64) {
         
     }
     
