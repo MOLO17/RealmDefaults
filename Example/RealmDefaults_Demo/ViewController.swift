@@ -17,8 +17,11 @@ class ViewController: UIViewController {
         // Do any additional setup after loading the view, typically from a nib.
         
         try! MyAccount.write { (instance) in
-            
+            (instance as! MyAccount).name = "name"
         }
+        
+        let instance = MyAccount.instance as! MyAccount
+        let name = instance.name
     }
 
     override func didReceiveMemoryWarning() {
